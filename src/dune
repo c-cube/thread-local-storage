@@ -1,0 +1,9 @@
+
+(env
+  (_ (flags :standard -strict-sequence -warn-error -a+8 -w +a-4-40-42-70)))
+
+(library
+ (name thread_local_storage)
+ (public_name thread-local-storage)
+ (wrapped true)
+ (libraries threads))

@@ -1,0 +1,3 @@
+(test
+ (name thread_local_storage)
+ (libraries thread_local_storage threads))
