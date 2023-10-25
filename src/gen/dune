@@ -1,0 +1,3 @@
+(executable
+ (modules gen)
+ (name gen))

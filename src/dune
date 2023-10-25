@@ -7,3 +7,9 @@
  (public_name thread-local-storage)
  (wrapped true)
  (libraries threads))
+
+(rule
+ (targets atomic.ml atomic.mli atomic.ml)
+ (deps gen/atomic.pre412.mli gen/atomic.post412.mli)
+ (action
+  (run ./gen/gen.exe)))
