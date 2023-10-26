@@ -13,7 +13,7 @@
 (package
  (name thread-local-storage)
  (synopsis "Efficient thread local storage for OCaml")
- (depends (ocaml (>= 4.08)) dune)
+ (depends (ocaml (>= 4.08)) (dune (>= 2.0)))
  (tags
   (topics threads tls)))
 
