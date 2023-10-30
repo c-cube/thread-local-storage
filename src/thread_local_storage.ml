@@ -13,8 +13,10 @@ type 'a key = {
 (** Counter used to allocate new keys *)
 let counter = Atomic.make 0
 
-(** Value used to detect a TLS slot that was not initialized yet *)
-let sentinel_value_for_uninit_tls_ () : Obj.t = Obj.repr counter
+(** Value used to detect a TLS slot that was not initialized yet.
+    Because [counter] is private and lives forever, no other
+    object the user can see will have the same address. *)
+let[@inline] sentinel_value_for_uninit_tls_ () : Obj.t = Obj.repr counter
 
 let new_key compute : _ key =
   let index = Atomic.fetch_and_add counter 1 in
@@ -23,6 +25,8 @@ let new_key compute : _ key =
 type thread_internal_state = {
   _id: int;  (** Thread ID (here for padding reasons) *)
   mutable tls: Obj.t;  (** Our data, stowed away in this unused field *)
+  _other: Obj.t;
+      (** Here to avoid lying to ocamlopt/flambda about the size of [Thread.t] *)
 }
 (** A partial representation of the internal type [Thread.t], allowing
   us to access the second field (unused after the thread
@@ -51,30 +55,34 @@ let[@inline] get_tls_ (index : int) : Obj.t array =
   let tls = thread.tls in
   if Obj.is_int tls then (
     let new_tls = grow_tls [||] index in
-    thread.tls <- Obj.magic new_tls;
+    thread.tls <- Obj.repr new_tls;
     new_tls
   ) else (
-    let tls = (Obj.magic tls : Obj.t array) in
+    let tls = (Obj.obj tls : Obj.t array) in
     if index < Array.length tls then
       tls
     else (
       let new_tls = grow_tls tls index in
-      thread.tls <- Obj.magic new_tls;
+      thread.tls <- Obj.repr new_tls;
       new_tls
     )
   )
 
-let get key =
+let[@inline never] get_compute_ tls (key : 'a key) : 'a =
+  let value = key.compute () in
+  Array.unsafe_set tls key.index (Obj.repr (Sys.opaque_identity value));
+  value
+
+let[@inline] get (key : 'a key) : 'a =
   let tls = get_tls_ key.index in
   let value = Array.unsafe_get tls key.index in
   if value != sentinel_value_for_uninit_tls_ () then
-    Obj.magic value
-  else (
-    let value = key.compute () in
-    Array.unsafe_set tls key.index (Obj.repr (Sys.opaque_identity value));
-    value
-  )
+    (* fast path *)
+    Obj.obj value
+  else
+    (* slow path: we need to compute the initial value *)
+    get_compute_ tls key
 
-let set key value =
+let[@inline] set key value : unit =
   let tls = get_tls_ key.index in
   Array.unsafe_set tls key.index (Obj.repr (Sys.opaque_identity value))
