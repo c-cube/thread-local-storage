@@ -10,7 +10,9 @@ val create : unit -> 'a t
 
     Note: each TLS slot allocated consumes a word per thread, and it
     can never be deallocated. [create] should be called at toplevel to
-    produce constants, do not use it in a loop. *)
+    produce constants, do not use it in a loop.
+
+    @raise Failure if no more TLS slots can be allocated. *)
 
 val get : 'a t -> 'a
 (** [get x] returns the value previously stored in the TLS slot [x]

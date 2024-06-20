@@ -6,6 +6,22 @@ let () = assert (Obj.field (Obj.repr (Thread.self ())) 1 = Obj.repr ())
 
 type 'a t = int (** Unique index for this TLS slot. *)
 
+let tls_length index =
+  let ceil_pow_2_minus_1 (n : int) : int =
+    let n = n lor (n lsr 1) in
+    let n = n lor (n lsr 2) in
+    let n = n lor (n lsr 4) in
+    let n = n lor (n lsr 8) in
+    let n = n lor (n lsr 16) in
+    if Sys.int_size > 32 then
+      n lor (n lsr 32)
+    else
+      n
+  in
+  let size = ceil_pow_2_minus_1 (index + 1) in
+  assert (size > index);
+  size
+
 (** Counter used to allocate new keys *)
 let counter = Atomic.make 0
 
@@ -14,7 +30,17 @@ let counter = Atomic.make 0
     object the user can see will have the same address. *)
 let sentinel_value_for_uninit_tls : Obj.t = Obj.repr counter
 
-let create () : _ t = Atomic.fetch_and_add counter 1 (* TODO: max array size *)
+external max_wosize : unit -> int = "caml_sys_const_max_wosize"
+let max_word_size = max_wosize ()
+
+let create () : _ t =
+  let index = Atomic.fetch_and_add counter 1 in
+  if tls_length index <= max_word_size then index
+  else (
+    (* Some platforms have a small max word size. *)
+    ignore (Atomic.fetch_and_add counter (-1));
+    failwith "Thread_local_storage.create: out of TLS slots"
+  )
 
 type thread_internal_state = {
   _id: int;  (** Thread ID (here for padding reasons) *)
@@ -35,7 +61,8 @@ let[@inline] get_raw index : Obj.t =
   else
     sentinel_value_for_uninit_tls
 
-let[@inline never] tls_error () = failwith "TLS entry not initialised"
+let[@inline never] tls_error () =
+  failwith "Thread_local_storage.get: TLS entry not initialised"
 
 let[@inline] get slot =
   let v = get_raw slot in
@@ -54,20 +81,9 @@ let[@inline] get_opt slot =
 
 (** Allocating and setting *)
 
-let ceil_pow_2_minus_1 (n : int) : int =
-  let n = n lor (n lsr 1) in
-  let n = n lor (n lsr 2) in
-  let n = n lor (n lsr 4) in
-  let n = n lor (n lsr 8) in
-  let n = n lor (n lsr 16) in
-  if Sys.int_size > 32 then
-    n lor (n lsr 32)
-  else
-    n
-
 (** Grow the array so that [index] is valid. *)
 let grow (old : Obj.t array) (index : int) : Obj.t array =
-  let new_length = ceil_pow_2_minus_1 (index + 1) in
+  let new_length = tls_length index in
   let new_ = Array.make new_length sentinel_value_for_uninit_tls in
   Array.blit old 0 new_ 0 (Array.length old);
   new_
