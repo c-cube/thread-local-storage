@@ -43,3 +43,10 @@ let () =
   Thread.join t;
 
   assert (!res = (1000, 2000))
+
+let k4 : float TLS.t = TLS.create ()
+
+let () =
+  assert (TLS.get_opt k4 = None);
+  TLS.set k4 42.5;
+  assert (TLS.get k4 = 42.5)
