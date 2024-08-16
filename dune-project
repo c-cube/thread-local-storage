@@ -1,6 +1,6 @@
 (lang dune 2.0)
 (name thread-local-storage)
-(version 0.1)
+(version 0.2)
 (generate_opam_files true)
 
 (source
