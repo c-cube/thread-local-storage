@@ -14,15 +14,21 @@ val create : unit -> 'a t
 
     @raise Failure if no more TLS slots can be allocated. *)
 
-val get : 'a t -> 'a
-(** [get x] returns the value previously stored in the TLS slot [x]
+exception Not_set
+(** Exception raised when accessing a slot that was not
+    previously set on this thread *)
+
+val get_exn : 'a t -> 'a
+(** [get_exn x] returns the value previously stored in the TLS slot [x]
     for the current thread.
 
     This function is safe to use from asynchronous callbacks without
     risks of races.
 
-    @raise Failure if the TLS slot has not been initialised in the
-    current thread. *)
+    @raise Not_set if the TLS slot has not been initialised in the
+    current thread. Do note that this uses [raise_notrace] for
+    performance reasons, so make sure to always catch the
+    exception as it will not carry a backtrace. *)
 
 val get_opt : 'a t -> 'a option
 (** [get_opt x] returns [Some v] where v is the value previously

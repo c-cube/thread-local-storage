@@ -12,10 +12,10 @@ let () =
           (fun () ->
             TLS.set k1 0;
             for _i = 1 to n do
-              let r = TLS.get k1 in
+              let r = TLS.get_exn k1 in
               TLS.set k1 (r + 1)
             done;
-            values.(t_idx) <- TLS.get k1)
+            values.(t_idx) <- TLS.get_exn k1)
           ())
   in
 
@@ -31,12 +31,12 @@ let () =
     TLS.set k2 (ref 0);
     TLS.set k3 (ref 0);
     for _i = 1 to 1000 do
-      let r2 = TLS.get k2 in
+      let r2 = TLS.get_exn k2 in
       incr r2;
-      let r3 = TLS.get k3 in
+      let r3 = TLS.get_exn k3 in
       r3 := !r3 + 2
     done;
-    res := !(TLS.get k2), !(TLS.get k3)
+    res := !(TLS.get_exn k2), !(TLS.get_exn k3)
   in
 
   let t = Thread.create run () in
@@ -49,4 +49,4 @@ let k4 : float TLS.t = TLS.create ()
 let () =
   assert (TLS.get_opt k4 = None);
   TLS.set k4 42.5;
-  assert (TLS.get k4 = 42.5)
+  assert (TLS.get_exn k4 = 42.5)

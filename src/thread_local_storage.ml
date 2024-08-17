@@ -4,7 +4,8 @@
 (* sanity check *)
 let () = assert (Obj.field (Obj.repr (Thread.self ())) 1 = Obj.repr ())
 
-type 'a t = int (** Unique index for this TLS slot. *)
+type 'a t = int
+(** Unique index for this TLS slot. *)
 
 let tls_length index =
   let ceil_pow_2_minus_1 (n : int) : int =
@@ -31,11 +32,13 @@ let counter = Atomic.make 0
 let sentinel_value_for_uninit_tls : Obj.t = Obj.repr counter
 
 external max_wosize : unit -> int = "caml_sys_const_max_wosize"
+
 let max_word_size = max_wosize ()
 
 let create () : _ t =
   let index = Atomic.fetch_and_add counter 1 in
-  if tls_length index <= max_word_size then index
+  if tls_length index <= max_word_size then
+    index
   else (
     (* Some platforms have a small max word size. *)
     ignore (Atomic.fetch_and_add counter (-1));
@@ -55,21 +58,19 @@ type thread_internal_state = {
 let[@inline] get_raw index : Obj.t =
   let thread : thread_internal_state = Obj.magic (Thread.self ()) in
   let tls = thread.tls in
-  if Obj.is_block tls && index < Array.length (Obj.obj tls : Obj.t array)
-  then
+  if Obj.is_block tls && index < Array.length (Obj.obj tls : Obj.t array) then
     Array.unsafe_get (Obj.obj tls : Obj.t array) index
   else
     sentinel_value_for_uninit_tls
 
-let[@inline never] tls_error () =
-  failwith "Thread_local_storage.get: TLS entry not initialised"
+exception Not_set
 
-let[@inline] get slot =
+let[@inline] get_exn slot =
   let v = get_raw slot in
   if v != sentinel_value_for_uninit_tls then
     Obj.obj v
   else
-    tls_error ()
+    raise_notrace Not_set
 
 let[@inline] get_opt slot =
   let v = get_raw slot in
@@ -77,7 +78,6 @@ let[@inline] get_opt slot =
     Some (Obj.obj v)
   else
     None
-
 
 (** Allocating and setting *)
 
