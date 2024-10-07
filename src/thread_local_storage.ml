@@ -70,7 +70,7 @@ let[@inline] get_exn slot =
   if v != sentinel_value_for_uninit_tls then
     Obj.obj v
   else
-    raise_notrace Not_set
+    raise Not_set
 
 let[@inline] get_opt slot =
   let v = get_raw slot in
