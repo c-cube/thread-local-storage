@@ -30,6 +30,11 @@ val get_exn : 'a t -> 'a
     performance reasons, so make sure to always catch the
     exception as it will not carry a backtrace. *)
 
+val get_exn_bt : 'a t -> 'a
+(** Like {!get_exn} but uses {!raise}, for better debugging.
+  This is likely slower than {!get_exn}.
+  @since NEXT_RELEASE *)
+
 val get_opt : 'a t -> 'a option
 (** [get_opt x] returns [Some v] where v is the value previously
     stored in the TLS slot [x] for the current thread. It returns
